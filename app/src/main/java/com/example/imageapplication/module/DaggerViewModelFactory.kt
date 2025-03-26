@@ -7,8 +7,7 @@ import javax.inject.Inject
 import javax.inject.Provider
 import kotlin.reflect.KClass
 
-@MapKey
-annotation class ViewModelKey(val value: KClass<out ViewModel>)
+
 
 class DaggerViewModelFactory @Inject constructor(
     private val creators: Map<Class<out ViewModel>, @JvmSuppressWildcards Provider<ViewModel>>

@@ -12,25 +12,13 @@ import dagger.Provides
 import dagger.multibindings.IntoMap
 
 @Module
-abstract class AppModule(private val application: Application) {
+class AppModule {
+    @Provides
+    fun provideApplicationContext(application: Application): Context = application.applicationContext
 
     @Provides
-    fun provideApplicationContext(): Context = application.applicationContext
-
-    @Binds
-    @IntoMap
-    @ViewModelKey(ImageViewModel::class)
-    abstract fun bindImageViewModel(imageViewModel: ImageViewModel): ViewModel
-
+    fun provideImageManager(context: Context): ImageManager = ImageManager(context)
 
     @Provides
-    fun provideImageManager(context: Context): ImageManager {
-        return ImageManager(context)
-    }
-
-    @Provides
-    fun provideFolderRepository(context: Context): FolderRepository {
-        return FolderRepository(context)
-    }
-
+    fun provideFolderRepository(context: Context): FolderRepository = FolderRepository(context)
 }
