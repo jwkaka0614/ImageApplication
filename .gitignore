@@ -1,0 +1,35 @@
+# Android Studio / IntelliJ
+.idea/*
+!.idea/gradle.xml
+!.idea/misc.xml
+!.idea/modules.xml
+!.idea/vcs.xml
+!.idea/dictionaries
+!.idea/libraries
+*.iml
+.gradle/
+local.properties
+build/
+captures/
+out/
+# Keystore files (不要上传你的签名密钥)
+*.jks
+
+# Built application files
+*.apk
+*.ap_
+
+# Google Services (如有)
+google-services.json
+
+# NDK build generated files
+obj/
+*.so
+# 如果你自动生成符号文件，也可以添加相应规则
+# *.debug
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
