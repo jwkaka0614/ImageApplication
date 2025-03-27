@@ -6,13 +6,15 @@ import android.media.Image
 import android.provider.MediaStore
 import androidx.compose.ui.graphics.Path
 import com.example.imageapplication.model.ImageModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import java.io.File
 
 class ImageManager(private val context: Context) {
 
 
-    fun getImageList(path: String): List<ImageModel> {
-        val imageList = mutableListOf<ImageModel>()
+    fun getImageFlow(path: String = "" ): Flow<ImageModel> = flow {
         val projection = arrayOf(
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.DISPLAY_NAME,
@@ -40,10 +42,8 @@ class ImageManager(private val context: Context) {
                     id
                 )
                 val folderPath = File(data).parent ?: ""
-                imageList.add(ImageModel(contentUri, name, folderPath))
-
+                emit(ImageModel(contentUri, name, folderPath))
             }
         }
-        return imageList
     }
 }
