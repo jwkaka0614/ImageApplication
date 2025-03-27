@@ -101,7 +101,10 @@ class MainActivity : ComponentActivity() {
                         // 根據所選 Tab，顯示相應內容
                         when (selectedTabIndex) {
                             0 -> ImageGrid(imageList = imageList)
-                            1 -> FolderImageGrid(imageList = imageList)
+                            1 -> {
+                                imageViewModel.fetchFolderPath()
+                                FolderImageGrid(imageList = imageList)
+                            }
                         }
                     }
                 }
@@ -187,6 +190,7 @@ fun ImageGrid(imageList: List<ImageModel>) {
         }
     }
 }
+
 // 顯示資料夾分組後的圖片 Grid
 @Composable
 fun FolderImageGrid(imageList: List<ImageModel>) {
