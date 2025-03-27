@@ -45,6 +45,8 @@ android {
 
 
 dependencies {
+    implementation("io.coil-kt:coil-compose:2.4.0")
+
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
     implementation("androidx.activity:activity-compose:1.10.1")
@@ -55,7 +57,7 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
 
-    implementation("com.google.dagger:dagger:2.44")
+    implementation("com.google.dagger:dagger:2.55")
     implementation("androidx.test.espresso:espresso-core:3.6.1")
 
     testImplementation("junit:junit:4.13.2")
@@ -66,5 +68,5 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 
-    annotationProcessor("com.google.dagger:dagger-compiler:2.44")
+    kapt("com.google.dagger:dagger-compiler:2.55")
 }
