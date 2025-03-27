@@ -4,6 +4,7 @@ import android.content.ContentUris
 import android.content.Context
 import android.media.Image
 import android.provider.MediaStore
+import android.util.Log
 import androidx.compose.ui.graphics.Path
 import com.example.imageapplication.model.ImageModel
 import kotlinx.coroutines.delay
@@ -13,20 +14,30 @@ import java.io.File
 
 class ImageManager(private val context: Context) {
 
+    companion object {
+        private const val TAG: String = "ImageManager"
+    }
 
-    fun getImageFlow(path: String = "" ): Flow<ImageModel> = flow {
+    fun getImageFlow(rootPath: String = ""): Flow<ImageModel> = flow {
+
+        val normalizedRoot = rootPath.trimEnd('/')
+
         val projection = arrayOf(
             MediaStore.Images.Media._ID,
             MediaStore.Images.Media.DISPLAY_NAME,
             MediaStore.Images.Media.DATA,
         )
 
-        val cursor =
-            context.contentResolver.query(
-                MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-                projection,
-                null, null, null
-            )
+        val selection = "${MediaStore.Images.Media.DATA} LIKE ?"
+        val selectionArgs = arrayOf("$normalizedRoot%")
+
+        val cursor = context.contentResolver.query(
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            projection,
+            selection,
+            selectionArgs,
+            null
+        )
 
         cursor?.use {
             val idColumn = it.getColumnIndexOrThrow(MediaStore.Images.Media._ID)
@@ -42,6 +53,7 @@ class ImageManager(private val context: Context) {
                     id
                 )
                 val folderPath = File(data).parent ?: ""
+                Log.d(TAG, folderPath)
                 emit(ImageModel(contentUri, name, folderPath))
             }
         }
