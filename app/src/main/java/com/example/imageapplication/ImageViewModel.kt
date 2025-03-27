@@ -24,9 +24,18 @@ class ImageViewModel @Inject constructor(
     val imageList = _imageList.asStateFlow()
     private val _folderList = MutableStateFlow<List<String>>(emptyList())
     val folderList = _folderList.asStateFlow()
-//    init {
-//        imageManager.getImageList()
-//    }
+
+    init {
+        // 監聽 currentPath 的變化，調用 fetchImages 新操作
+        viewModelScope.launch {
+            currentPath.collect { newPath ->
+                // 在 currentPath 變化後，先清空目前圖片列表（可選）
+                _imageList.value = emptyList()
+                // 根據新的路徑讀取圖片
+                fetchImages(newPath)
+            }
+        }
+    }
 
     fun fetchImages(path: String = "") {
         viewModelScope.launch {
