@@ -1,7 +1,7 @@
 package com.example.imageapplication.manager
 
 import android.content.Context
-import com.example.imageapplication.model.FoldModel
+import com.example.imageapplication.model.FolderModel
 import com.example.imageapplication.model.FolderGrouping
 import com.example.imageapplication.model.ImageModel
 
@@ -30,7 +30,7 @@ class FolderRepository(private val context: Context) {
             // 這裡，用組內所有 folderPath 計算共同前綴
             val groupCommon = getCommonRoot(images.map { it.folderPath })
             val lastFolderName = groupCommon.trimEnd('/').split("/").lastOrNull() ?: ""
-            FoldModel(folderName = lastFolderName, folderPath = groupCommon)
+            FolderModel(folderName = lastFolderName, folderPath = groupCommon)
         }
         return FolderGrouping(rootFolder = globalRoot, subFolders = foldList)
     }

@@ -20,7 +20,6 @@ class ImageManager(private val context: Context) {
 
     fun getImageFlow(rootPath: String = ""): Flow<ImageModel> = flow {
 
-        val normalizedRoot = rootPath.trimEnd('/')
 
         val projection = arrayOf(
             MediaStore.Images.Media._ID,
@@ -29,7 +28,7 @@ class ImageManager(private val context: Context) {
         )
 
         val selection = "${MediaStore.Images.Media.DATA} LIKE ?"
-        val selectionArgs = arrayOf("$normalizedRoot%")
+        val selectionArgs = arrayOf("$rootPath%")
 
         val cursor = context.contentResolver.query(
             MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
