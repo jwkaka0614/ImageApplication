@@ -20,6 +20,8 @@ import com.example.imageapplication.component.DaggerAppComponent
 import com.example.imageapplication.ui.theme.ImageApplicationTheme
 import javax.inject.Inject
 import android.Manifest
+import android.util.Log
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import com.example.imageapplication.model.ImageModel
@@ -81,10 +83,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             ImageApplicationTheme {
                 var selectedTabIndex by remember { mutableIntStateOf(0) }
-                // 收集 viewModel 中的狀態
-                val imageList by imageViewModel.imageList.collectAsState()
-                val folderList by imageViewModel.folderList.collectAsState()
-                val currentPath by imageViewModel.currentPath.collectAsState()
+
 
                 // 使用 LaunchedEffect，只在 selectedTabIndex 改變時調用對應的 fetch 方法
                 LaunchedEffect(key1 = selectedTabIndex) {
@@ -115,13 +114,11 @@ class MainActivity : ComponentActivity() {
                         }
 
                         // 根據所選 Tab 顯示相應內容
-                        when (selectedTabIndex) {
-                            0 -> ImageGrid(imageList = imageList)
-                            1 -> FolderImageGrid(
-                                currentPath = currentPath,
-                                imageList = imageList,
-                                folderList = folderList
-                            )
+                        Crossfade(targetState = selectedTabIndex, label = "") { tabIndex ->
+                            when (tabIndex) {
+                                0 -> AllImagesScreen(imageViewModel)
+                                1 -> FolderImagesScreen(imageViewModel)
+                            }
                         }
                     }
                 }
@@ -129,6 +126,30 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    @Composable
+    fun AllImagesScreen(viewModel: ImageViewModel) {
+        // 只有 All Image 這個會訂閱 imageList 狀態
+        val imageList by viewModel.imageList.collectAsState()
+        Log.d("AllImagesScreen", imageList.size.toString())
+
+        ImageGrid(imageList = imageList)
+    }
+
+    @Composable
+    fun FolderImagesScreen(viewModel: ImageViewModel) {
+        // 只有 Folder Image 會訂閱 folderImageList、folderList、currentPath
+        val folderImages by viewModel.folderImageList.collectAsState()
+        val folderList by viewModel.folderList.collectAsState()
+        val currentPath by viewModel.currentPath.collectAsState()
+
+        Log.d("FolderImagesScreen", "currentPath: $currentPath")
+        FolderImageGrid(
+            viewModel = viewModel,
+            currentPath = currentPath,
+            imageList = folderImages,
+            folderList = folderList
+        )
+    }
 
     private fun checkPermissionAndProceed() {
         val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -171,6 +192,7 @@ fun ImageGrid(imageList: List<ImageModel>) {
 
 @Composable
 fun FolderImageGrid(
+    viewModel: ImageViewModel,
     currentPath: String,
     imageList: List<ImageModel>,
     folderList: List<FolderModel>
@@ -191,9 +213,16 @@ fun FolderImageGrid(
                 contentPadding = PaddingValues(8.dp),
                 modifier = Modifier.wrapContentSize()
             ) {
+                item() {
+                    FolderItem(onFolderClick = {viewModel.backPath()})
+                }
                 //資料夾區
                 items(folderList) { folder ->
-                    FolderItem(folder = folder)
+                    FolderItem(
+                        folder = folder,
+                        onFolderClick = { folderPath ->
+                            viewModel.nextPath(folderPath)
+                        })
                 }
                 //資料夾與圖片分區
                 item(span = { GridItemSpan(columns) }) {
@@ -210,7 +239,10 @@ fun FolderImageGrid(
 
 
 @Composable
-fun FolderItem(folder: FolderModel) {
+fun FolderItem(
+    folder: FolderModel = FolderModel("", "..."),
+    onFolderClick: (folderPath: String) -> Unit
+) {
     Surface(
         modifier = Modifier
             .padding(4.dp)
@@ -226,7 +258,7 @@ fun FolderItem(folder: FolderModel) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(color = Color.Gray, shape = RoundedCornerShape(8.dp))
-                    .clickable(onClick  = {})
+                    .clickable { onFolderClick(folder.folderPath) }
                     .padding(10.dp)
             ) {
                 Text(
