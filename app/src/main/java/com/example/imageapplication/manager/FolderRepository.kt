@@ -20,19 +20,20 @@ class FolderRepository(private val context: Context) {
      */
     fun getFirstLevel(imageList: List<ImageModel>): FolderGrouping {
         // 1. 取得共同根目錄（global root）
-        val globalRoot = getCommonRoot(imageList.map { it.folderPath })
+        val commonRoot = getCommonRoot(imageList.map { it.folderPath })
 
         // 2. 根據 globalRoot 對圖片分組，鍵為第一個資料夾名稱
-        val groups = groupImagesByFirstLevel(imageList, globalRoot)
+        val groups = groupImagesByFirstLevel(imageList, commonRoot)
 
         // 3. 對於每一組，計算該組的共同路徑
         val foldList = groups.map { (firstLevel, images) ->
-            // 這裡，用組內所有 folderPath 計算共同前綴
-            val groupCommon = getCommonRoot(images.map { it.folderPath })
-            val lastFolderName = groupCommon.trimEnd('/').split("/").lastOrNull() ?: ""
-            FolderModel(folderName = lastFolderName, folderPath = groupCommon)
+            // 用組內所有 folderPath 計算共同路徑
+            val fullPath = getCommonRoot(images.map { it.folderPath })
+            val relativePath = fullPath.removePrefix(commonRoot)
+            val visibleName = shortenPath(relativePath)
+            FolderModel(folderName = visibleName, folderPath = relativePath)
         }
-        return FolderGrouping(rootFolder = globalRoot, subFolders = foldList)
+        return FolderGrouping(rootFolder = commonRoot, subFolders = foldList)
     }
 
     /**
@@ -57,9 +58,9 @@ class FolderRepository(private val context: Context) {
      */
     fun groupImagesByFirstLevel(
         imageList: List<ImageModel>,
-        globalRoot: String
+        commonRoot: String
     ): Map<String, List<ImageModel>> {
-        val normalizedRoot = globalRoot.trimEnd('/') + "/"
+        val normalizedRoot = commonRoot.trimEnd('/') + "/"
         return imageList.filter { it.folderPath.startsWith(normalizedRoot) }
             .groupBy { image ->
                 val relativePath = image.folderPath.removePrefix(normalizedRoot)
@@ -68,4 +69,17 @@ class FolderRepository(private val context: Context) {
             }
     }
 
+    private fun shortenPath(path: String): String {
+        // 移除尾部的斜線
+        val trimmed = path.trimEnd('/')
+        // 以斜線拆分，過濾掉空值（例如開頭那個空字串）
+        val parts = trimmed.split('/').filter { it.isNotEmpty() }
+        return if (parts.size <= 2) {
+            // 如果只有一個或二個資料夾，原樣組合回來（保持開頭和結尾的斜線）
+            parts.joinToString("/")
+        } else {
+            // 超過兩個時，僅取第一個與最後一個，中間以 ... 代替
+            "${parts.first()}/.../${parts.last()}"
+        }
+    }
 }
