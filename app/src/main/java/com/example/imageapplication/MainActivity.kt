@@ -21,9 +21,12 @@ import com.example.imageapplication.ui.theme.ImageApplicationTheme
 import javax.inject.Inject
 import android.Manifest
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.compose.animation.Crossfade
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import com.example.imageapplication.model.ImageModel
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -31,7 +34,13 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
@@ -41,6 +50,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,15 +66,16 @@ class MainActivity : ComponentActivity() {
 
     @Inject
     lateinit var imageViewModel: ImageViewModel
-    private lateinit var requestPermissionLauncher: ActivityResultLauncher<String>
+    private lateinit var requestPermissionLauncher: ActivityResultLauncher<Array<String>>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         DaggerAppComponent.factory().create(application).inject(this)
         requestPermissionLauncher = registerForActivityResult(
-            ActivityResultContracts.RequestPermission()
-        ) { isGranted ->
-            if (isGranted) {
+            ActivityResultContracts.RequestMultiplePermissions()
+        ) { permissions ->
+            val allGranted = permissions.all { it.value }
+            if (allGranted) {
                 showContent()
             } else {
                 Toast.makeText(
@@ -74,13 +86,14 @@ class MainActivity : ComponentActivity() {
             }
         }
         enableEdgeToEdge()
-        checkPermissionAndProceed()
+        checkPermissionsAndProceed()
 
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
     private fun showContent() {
         setContent {
+            val isMultiSelectMode by imageViewModel.isMultiSelectMode.collectAsState()
             ImageApplicationTheme {
                 var selectedTabIndex by remember { mutableIntStateOf(0) }
 
@@ -96,7 +109,36 @@ class MainActivity : ComponentActivity() {
                 Scaffold(
                     topBar = {
                         TopAppBar(
-                            title = { Text("Image Application") }
+                            title = {
+                                if (isMultiSelectMode) {
+                                    Text("多選模式")
+                                } else {
+                                    Text("Image Application")
+                                }
+                            },
+                            actions = {
+                                if (isMultiSelectMode) {
+                                    // 垃圾桶按鈕：執行刪除操作
+                                    IconButton(onClick = {
+                                        // 在 ViewModel 中處理刪除選取的圖片
+                                        imageViewModel.deleteSelectedImages()
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "刪除"
+                                        )
+                                    }
+                                    // 取消按鈕：退出多選模式
+                                    IconButton(onClick = {
+                                        imageViewModel.exitMultiSelectMode()
+                                    }) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "取消"
+                                        )
+                                    }
+                                }
+                            }
                         )
                     }
                 ) { innerPadding ->
@@ -131,8 +173,8 @@ class MainActivity : ComponentActivity() {
         // 只有 All Image 這個會訂閱 imageList 狀態
         val imageList by viewModel.imageList.collectAsState()
         Log.d("AllImagesScreen", imageList.size.toString())
-
-        ImageGrid(imageList = imageList)
+        MultiSelectImageScreen(viewModel = viewModel)
+//        ImageGrid(imageList = imageList)
     }
 
     @Composable
@@ -151,28 +193,40 @@ class MainActivity : ComponentActivity() {
         )
     }
 
-    private fun checkPermissionAndProceed() {
-        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            // Android 13 以上使用 READ_MEDIA_IMAGES
-            Manifest.permission.READ_MEDIA_IMAGES
-        } else {
-            // 其他版本使用 READ_EXTERNAL_STORAGE
-            Manifest.permission.READ_EXTERNAL_STORAGE
+    private fun checkPermissionsAndProceed() {
+        val permissions: List<String> = when {
+            // Android 13 (API 33) 及以上只需讀取媒體圖片權限
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
+                listOf(Manifest.permission.READ_MEDIA_IMAGES)
+            }
+            // Android 10 (API 29) ~ Android 12 (API 32)：請求讀取與全部檔案存取權限
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
+                listOf(
+                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Manifest.permission.MANAGE_EXTERNAL_STORAGE
+                )
+            }
+            // Android 9 (API 28) 及以下：請求傳統的讀取與寫入權限
+            else -> {
+                listOf(
+                    Manifest.permission.READ_EXTERNAL_STORAGE,
+                    Manifest.permission.WRITE_EXTERNAL_STORAGE
+                )
+            }
         }
 
-        if (ContextCompat.checkSelfPermission(
-                this,
-                permission
-            ) == PackageManager.PERMISSION_GRANTED
-        ) {
-            // 權限已授予，直接顯示內容
+        // 找出尚未授權的權限
+        val missingPermissions = permissions.filter { permission ->
+            ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (missingPermissions.isEmpty()) {
+            // 如果所有權限已授予，則進入應用主流程
             showContent()
         } else {
-            // 沒有權限，請求權限
-            requestPermissionLauncher.launch(permission)
+            // 請求缺失的權限
+            requestPermissionLauncher.launch(missingPermissions.toTypedArray())
         }
-
-
     }
 }
 
@@ -214,7 +268,7 @@ fun FolderImageGrid(
                 modifier = Modifier.wrapContentSize()
             ) {
                 item() {
-                    FolderItem(onFolderClick = {viewModel.backPath()})
+                    FolderItem(onFolderClick = { viewModel.backPath() })
                 }
                 //資料夾區
                 items(folderList) { folder ->
@@ -273,30 +327,137 @@ fun FolderItem(
     }
 }
 
+//@OptIn(ExperimentalFoundationApi::class)
+//@Composable
+//fun ImageItem(
+//    image: ImageModel,
+//    isSelected: Boolean = false,
+//    onImageClick: (ImageModel) -> Unit,
+//    onImageLongClick: (ImageModel) -> Unit
+//) {
+//    Column(
+//        horizontalAlignment = Alignment.CenterHorizontally,
+//        modifier = Modifier
+//            .padding(4.dp)
+//            .fillMaxWidth()
+//            .combinedClickable(
+//                onClick = {
+//                    // 單短擊，彈出 image 圖示或者執行其他操作
+//                    onImageClick(image)
+//                },
+//                onLongClick = {
+//                    // 長按，啟動多選功能
+//                    onImageLongClick(image)
+//                }
+//            )
+//    ) {
+//        AsyncImage(
+//            model = image.uri,
+//            contentDescription = image.name,
+//            contentScale = ContentScale.Crop,
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .aspectRatio(1f)
+//                .clip(MaterialTheme.shapes.medium)
+//        )
+//        Spacer(modifier = Modifier.height(4.dp))
+//        // 顯示圖片名稱，name 在下方
+//        Text(
+//            text = image.name,
+//            style = MaterialTheme.typography.bodyMedium,
+//            maxLines = 1,
+//            modifier = Modifier.padding(horizontal = 4.dp)
+//        )
+//    }
+//}
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun ImageItem(image: ImageModel) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
+fun ImageItem(
+    image: ImageModel,
+    onImageClick: (ImageModel) -> Unit = {},
+    onImageLongClick: (ImageModel) -> Unit = {},
+    isSelected: Boolean = false
+) {
+    // 使用 Box 包裝，這樣可以在圖片上覆蓋其他組件顯示選取狀態
+    Box(
         modifier = Modifier
             .padding(4.dp)
             .fillMaxWidth()
+            .combinedClickable(
+                onClick = { onImageClick(image) },
+                onLongClick = { onImageLongClick(image) }
+            )
     ) {
-        AsyncImage(
-            model = image.uri,
-            contentDescription = image.name,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(1f)
-                .clip(MaterialTheme.shapes.medium)
-        )
-        Spacer(modifier = Modifier.height(4.dp))
-        // 顯示圖片名稱，name 在下方
-        Text(
-            text = image.name,
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        )
+        // 圖片及說明的內容
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            AsyncImage(
+                model = image.uri,
+                contentDescription = image.name,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+                    .clip(MaterialTheme.shapes.medium)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = image.name,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                modifier = Modifier.padding(horizontal = 4.dp)
+            )
+        }
+        // 如果處於選取狀態，覆蓋一個半透明的遮罩和勾選圖示
+        if (isSelected) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(Color(0x66000000)) // 半透明黑色遮罩
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = "Selected",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(4.dp)
+                )
+            }
+        }
     }
 }
+
+@Composable
+fun MultiSelectImageScreen(viewModel: ImageViewModel) {
+    val isMultiSelectMode by viewModel.isMultiSelectMode.collectAsState()
+    val selectedImages by viewModel.selectedImages.collectAsState()
+    val imageList by viewModel.imageList.collectAsState()
+
+    LazyVerticalGrid(
+        columns = GridCells.Adaptive(minSize = 150.dp),
+        contentPadding = PaddingValues(8.dp),
+        modifier = Modifier.fillMaxSize()
+    ) {
+        items(imageList) { image ->
+            ImageItem(
+                image = image,
+                isSelected = selectedImages.contains(image),
+                onImageClick = {
+                    if (isMultiSelectMode) {
+                        viewModel.toggleImageSelection(image)
+                    } else {
+                        // 單擊行為
+                    }
+                },
+                onImageLongClick = {
+                    viewModel.enterMultiSelectMode()
+                    viewModel.toggleImageSelection(image)
+                }
+            )
+        }
+    }
+}
+

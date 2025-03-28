@@ -21,7 +21,7 @@ class ImageViewModel @Inject constructor(
     private var fetchImagesJob: Job? = null
     private var _currentPath = MutableStateFlow("")
     val currentPath = _currentPath.asStateFlow()
-    val pathStack = ArrayDeque<String>() // 用於追蹤路徑歷史
+    private val pathStack = ArrayDeque<String>() // 用於追蹤路徑歷史
 
     private val _imageList = MutableStateFlow<List<ImageModel>>(emptyList())    //當前目錄下所有圖片含子目錄
     val imageList = _imageList.asStateFlow()
@@ -29,6 +29,47 @@ class ImageViewModel @Inject constructor(
     val folderList = _folderList.asStateFlow()
     private val _folderImageList = MutableStateFlow<List<ImageModel>>(emptyList())  //當前資料夾下的圖片
     val folderImageList = _folderImageList.asStateFlow()
+
+    private val _isMultiSelectMode = MutableStateFlow(false)    //多選模式
+    val isMultiSelectMode = _isMultiSelectMode.asStateFlow()
+
+    private val _selectedImages = MutableStateFlow<Set<ImageModel>>(emptySet()) //被選取圖片清單
+    val selectedImages = _selectedImages.asStateFlow()
+
+    fun deleteSelectedImages() {
+        viewModelScope.launch {
+            _selectedImages.value.forEach { image ->
+                imageManager.deleteImage(image)
+            }
+            _selectedImages.value = emptySet()
+        }
+    }
+
+    fun deleteImage(image: ImageModel) {
+        viewModelScope.launch {
+            imageManager.deleteImage(image)
+
+        }
+    }
+
+    fun enterMultiSelectMode() {
+        _isMultiSelectMode.value = true
+    }
+
+    fun exitMultiSelectMode() {
+        _isMultiSelectMode.value = false
+        _selectedImages.value = emptySet()
+    }
+
+    fun toggleImageSelection(image: ImageModel) {
+        _selectedImages.update { currentSet ->
+            if (currentSet.contains(image)) {
+                currentSet - image
+            } else {
+                currentSet + image
+            }
+        }
+    }
 
     init {
         // 監聽 currentPath 的變化，調用 fetchImages 新操作
@@ -74,7 +115,8 @@ class ImageViewModel @Inject constructor(
             image.folderPath.trimEnd('/') == trimmedFolder
         }
     }
-    fun backPath(){
+
+    fun backPath() {
         if (pathStack.isNotEmpty()) {
             val lastPart = pathStack.removeLast()
             _currentPath.value = _currentPath.value.removeSuffix(lastPart)
@@ -87,6 +129,7 @@ class ImageViewModel @Inject constructor(
             }
         }
     }
+
     fun nextPath(newPath: String) {
         _currentPath.value += newPath
         pathStack.addLast(newPath)
