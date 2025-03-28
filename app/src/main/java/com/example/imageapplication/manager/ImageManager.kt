@@ -1,11 +1,19 @@
 package com.example.imageapplication.manager
 
+import android.app.Activity
 import android.content.ContentUris
 import android.content.Context
+import android.content.IntentSender
 import android.media.Image
+import android.net.Uri
+import android.os.Build
 import android.provider.MediaStore
 import android.util.Log
+import android.widget.Toast
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.ui.graphics.Path
+import androidx.core.app.ActivityCompat.startIntentSenderForResult
 import com.example.imageapplication.model.ImageModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -19,7 +27,6 @@ class ImageManager(private val context: Context) {
     }
 
     fun getImageFlow(rootPath: String = ""): Flow<ImageModel> = flow {
-
 
         val projection = arrayOf(
             MediaStore.Images.Media._ID,
@@ -57,4 +64,32 @@ class ImageManager(private val context: Context) {
             }
         }
     }
+
+    fun deleteImage(image: ImageModel) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            // Android 11 及以上：使用 MediaStore 的刪除請求
+            try {
+                val pendingIntent = MediaStore.createDeleteRequest(context.contentResolver, listOf(image.uri))
+                // 建立 IntentSenderRequest，並啟動刪除請求
+                val intentSenderRequest = IntentSenderRequest.Builder(pendingIntent.intentSender).build()
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(context, "刪除請求失敗", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            // Android 9 及以下：可直接使用 contentResolver.delete
+            try {
+                val rowsDeleted = context.contentResolver.delete(image.uri, null, null)
+                if (rowsDeleted > 0) {
+                    println("圖片已成功刪除: ${image.name}")
+                } else {
+                    println("圖片刪除失敗: ${image.name}")
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Toast.makeText(context, "刪除時發生例外情況", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
 }
