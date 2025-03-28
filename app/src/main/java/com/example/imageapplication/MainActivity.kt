@@ -15,34 +15,39 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.ContextCompat
 import com.example.imageapplication.component.DaggerAppComponent
 import com.example.imageapplication.ui.theme.ImageApplicationTheme
 import javax.inject.Inject
 import android.Manifest
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import com.example.imageapplication.model.ImageModel
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import com.example.imageapplication.model.FolderModel
 
 class MainActivity : ComponentActivity() {
 
@@ -76,8 +81,19 @@ class MainActivity : ComponentActivity() {
         setContent {
             ImageApplicationTheme {
                 var selectedTabIndex by remember { mutableIntStateOf(0) }
+                // 收集 viewModel 中的狀態
                 val imageList by imageViewModel.imageList.collectAsState()
-                imageViewModel.fetchImages()
+                val folderList by imageViewModel.folderList.collectAsState()
+                val currentPath by imageViewModel.currentPath.collectAsState()
+
+                // 使用 LaunchedEffect，只在 selectedTabIndex 改變時調用對應的 fetch 方法
+                LaunchedEffect(key1 = selectedTabIndex) {
+                    when (selectedTabIndex) {
+                        0 -> imageViewModel.fetchImages()      // 切換到 All Image 時 fetch 一次圖片
+                        1 -> imageViewModel.fetchFolderPath()    // 切換到 Folder Image 時更新資料夾
+                    }
+                }
+
                 Scaffold(
                     topBar = {
                         TopAppBar(
@@ -98,13 +114,14 @@ class MainActivity : ComponentActivity() {
                             }
                         }
 
-                        // 根據所選 Tab，顯示相應內容
+                        // 根據所選 Tab 顯示相應內容
                         when (selectedTabIndex) {
                             0 -> ImageGrid(imageList = imageList)
-                            1 -> {
-                                imageViewModel.fetchFolderPath()
-                                FolderImageGrid(imageList = imageList)
-                            }
+                            1 -> FolderImageGrid(
+                                currentPath = currentPath,
+                                imageList = imageList,
+                                folderList = folderList
+                            )
                         }
                     }
                 }
@@ -140,22 +157,6 @@ class MainActivity : ComponentActivity() {
 
 
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    ImageApplicationTheme {
-        Greeting("Android")
-    }
-}
-
-@Composable
 fun ImageGrid(imageList: List<ImageModel>) {
     LazyVerticalGrid(
         columns = GridCells.Adaptive(minSize = 150.dp),
@@ -163,78 +164,107 @@ fun ImageGrid(imageList: List<ImageModel>) {
         modifier = Modifier.fillMaxSize()
     ) {
         items(imageList) { image ->
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier
-                    .padding(4.dp)
-                    .fillMaxWidth()
+            ImageItem(image = image)
+        }
+    }
+}
+
+@Composable
+fun FolderImageGrid(
+    currentPath: String,
+    imageList: List<ImageModel>,
+    folderList: List<FolderModel>
+) {
+    Column {
+        Text(
+            modifier = Modifier.padding(top = 10.dp, start = 8.dp, end = 8.dp),
+            text = currentPath,
+            style = MaterialTheme.typography.bodyMedium
+        )
+
+        BoxWithConstraints {
+            val minSize = 150.dp
+            //計算列數，用於 GridItemSpan
+            val columns = (maxWidth / minSize).toInt().coerceAtLeast(1)
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(columns),
+                contentPadding = PaddingValues(8.dp),
+                modifier = Modifier.wrapContentSize()
             ) {
-                AsyncImage(
-                    model = image.uri,
-                    contentDescription = image.name,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(1f)
-                        .clip(MaterialTheme.shapes.medium)
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                // 顯示圖片名稱，name 在下方
-                Text(
-                    text = image.name,
-                    style = MaterialTheme.typography.bodyMedium,
-                    maxLines = 1,
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
+                //資料夾區
+                items(folderList) { folder ->
+                    FolderItem(folder = folder)
+                }
+                //資料夾與圖片分區
+                item(span = { GridItemSpan(columns) }) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+                //圖片區
+                items(imageList) { image ->
+                    ImageItem(image = image)
+                }
             }
         }
     }
 }
 
-// 顯示資料夾分組後的圖片 Grid
+
 @Composable
-fun FolderImageGrid(imageList: List<ImageModel>) {
-    // 根據 folderPath 分組
-    val groupedImages = imageList.groupBy { it.folderPath }
-    Column(modifier = Modifier.fillMaxSize()) {
-        groupedImages.forEach { (folder, images) ->
-            // Folder header
-            Text(
-                text = folder.ifEmpty { "Unknown Folder" },
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.padding(8.dp)
-            )
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 150.dp),
-                // 內邊距可以根據情況調整
-                contentPadding = PaddingValues(4.dp),
+fun FolderItem(folder: FolderModel) {
+    Surface(
+        modifier = Modifier
+            .padding(4.dp)
+            .fillMaxWidth(),
+        shape = RoundedCornerShape(8.dp),
+        shadowElevation = 4.dp
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(8.dp)
+        ) {
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 100.dp)
+                    .background(color = Color.Gray, shape = RoundedCornerShape(8.dp))
+                    .clickable(onClick  = {})
+                    .padding(10.dp)
             ) {
-                items(images) { image ->
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier
-                            .padding(4.dp)
-                    ) {
-                        AsyncImage(
-                            model = image.uri,
-                            contentDescription = image.name,
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(100.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = image.name,
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 1
-                        )
-                    }
-                }
+                Text(
+                    text = folder.folderName,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.weight(1f)
+                )
             }
+            Spacer(modifier = Modifier.width(4.dp))
+
         }
+    }
+}
+
+@Composable
+fun ImageItem(image: ImageModel) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .padding(4.dp)
+            .fillMaxWidth()
+    ) {
+        AsyncImage(
+            model = image.uri,
+            contentDescription = image.name,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .clip(MaterialTheme.shapes.medium)
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        // 顯示圖片名稱，name 在下方
+        Text(
+            text = image.name,
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            modifier = Modifier.padding(horizontal = 4.dp)
+        )
     }
 }
