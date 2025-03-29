@@ -4,7 +4,9 @@ import android.content.Context
 import com.example.imageapplication.model.FolderModel
 import com.example.imageapplication.model.FolderGrouping
 import com.example.imageapplication.model.ImageModel
+import javax.inject.Singleton
 
+@Singleton
 class FolderRepository(private val context: Context) {
     companion object {
         private const val TAG: String = "FolderRepository"
