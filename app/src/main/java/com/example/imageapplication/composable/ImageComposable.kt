@@ -17,7 +17,6 @@ fun AllImagesScreen(viewModel: ImageViewModel) {
     val imageList by viewModel.imageList.collectAsState()
     Log.d("AllImagesScreen", imageList.size.toString())
     MultiSelectImageScreen(viewModel = viewModel)
-//        ImageGrid(imageList = imageList)
 }
 
 @Composable

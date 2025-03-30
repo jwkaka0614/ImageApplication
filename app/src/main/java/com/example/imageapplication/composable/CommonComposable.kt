@@ -37,6 +37,7 @@ fun FolderItem(
             .padding(4.dp)
             .fillMaxWidth(),
         shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant,
         shadowElevation = 4.dp
     ) {
         Row(
@@ -46,7 +47,10 @@ fun FolderItem(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(color = Color.Gray, shape = RoundedCornerShape(8.dp))
+                    .background(
+                        color = MaterialTheme.colorScheme.surfaceVariant,
+                        shape = RoundedCornerShape(8.dp)
+                    )
                     .clickable { onFolderClick(folder.folderPath) }
                     .padding(10.dp)
             ) {

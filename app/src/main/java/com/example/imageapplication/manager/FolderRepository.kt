@@ -31,7 +31,9 @@ class FolderRepository(private val context: Context) {
         val foldList = groups.map { (firstLevel, images) ->
             // 用組內所有 folderPath 計算共同路徑
             val fullPath = getCommonRoot(images.map { it.folderPath })
+            // 儲存不含根目錄的路徑，用於stack返回
             val relativePath = fullPath.removePrefix(commonRoot)
+            // 避免資料夾名稱過長 如：path1/path2/path3 用path1/.../path3顯示
             val visibleName = shortenPath(relativePath)
             FolderModel(folderName = visibleName, folderPath = relativePath)
         }
