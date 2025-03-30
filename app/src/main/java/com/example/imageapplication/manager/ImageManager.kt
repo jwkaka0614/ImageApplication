@@ -3,6 +3,7 @@ package com.example.imageapplication.manager
 import android.content.ContentUris
 import android.content.Context
 import android.content.IntentSender
+import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.util.Log
@@ -17,6 +18,7 @@ import kotlinx.coroutines.yield
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.random.Random
 
 @Singleton
 class ImageManager @Inject constructor(private val context: Context) : IImageManager {
@@ -68,7 +70,33 @@ class ImageManager @Inject constructor(private val context: Context) : IImageMan
             Log.e(TAG, "Error retrieving images", e)
         }
     }
+     fun getGetTestFlow(): Flow<ImageModel> = flow {
+        val folderNames = listOf("path1", "path2", "path3", "path4", "path5", "path6", "path7")
 
+        // 模擬生成 20 筆測試圖片資料
+        val testImages = mutableListOf<ImageModel>()
+        repeat(20) { index ->
+            // 隨機決定目錄層數，介於 1 到 3 層
+            val layerCount = Random.nextInt(1, 4)
+            // 從 folderNames 當中隨機挑選幾個資料夾名稱當作各層資料夾
+            val selectedFolders = (1..layerCount).map { folderNames.random() }
+            // 組合成完整的資料夾路徑，如 "/Nature/Travel/Food/"
+            val folderPath = "/" + selectedFolders.joinToString("/") + "/"
+            // 圖片名稱，這裡以 "Image_{index}.jpg" 為範例
+            val imageName = "Image_${index + 1}.jpg"
+            // 模擬圖片的 Uri，例如 "content://test/Nature/Travel/Food/Image_1.jpg"
+            val testUri = Uri.parse("content://test$folderPath$imageName")
+
+            // 將該筆測試數據加入清單
+            testImages.add(ImageModel(uri = testUri, name = imageName, folderPath = folderPath))
+        }
+
+        // 模擬延遲（例如網路或磁碟 I/O），並逐筆發射
+        for (image in testImages) {
+            emit(image)
+            delay(50) // 每發射一筆資料後等待 50 毫秒，模擬 I/O 延遲
+        }
+    }
 
     /**
      * 針對 Android 11 (API 30) 及以上，生成系統刪除確認的 IntentSender
