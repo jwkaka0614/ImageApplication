@@ -54,7 +54,7 @@ class ImageViewModel @Inject constructor(
     private val _selectedImages = MutableStateFlow<Set<ImageModel>>(emptySet()) //被選取圖片清單
     val selectedImages = _selectedImages.asStateFlow()
 
-    // 修改這裡：使用 MutableSharedFlow 傳遞刪除事件
+    // 使用 MutableSharedFlow 讓view監聽該flow，用來傳遞刪除事件，
     private val _deletionEvent = MutableSharedFlow<DeletionEvent>()
     val deletionEvent = _deletionEvent.asSharedFlow()
 

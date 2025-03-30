@@ -69,14 +69,13 @@ class MainActivity : ComponentActivity(), AppInjectionProvider {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // MainActivity.kt
+
         if ((application as? AppInjectionProvider) != null) {
-            // 既然Application實作了該接口，就通過接口注入
             (application as AppInjectionProvider).inject(this)
         } else {
-            // 如果不符合，就使用生產預設注入方式
             DaggerAppComponent.factory().create(application).inject(this)
         }
+
         requestPermissionLauncher = registerForActivityResult(
             ActivityResultContracts.RequestMultiplePermissions()
         ) { permissions ->
@@ -96,13 +95,14 @@ class MainActivity : ComponentActivity(), AppInjectionProvider {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 imageViewModel.deletionEvent.collect { event ->
                     when (event) {
+                        //Android 11 以上
                         is DeletionEvent.ShowDeletionConfirmation -> {
                             // 建立 IntentSenderRequest 並啟動刪除確認流程
                             val intentSenderRequest =
                                 IntentSenderRequest.Builder(event.intentSender).build()
                             deletionLauncher.launch(intentSenderRequest)
                         }
-
+                        //Android 10 以下
                         is DeletionEvent.DeletionResult -> {
                             if (event.success) {
                                 Toast.makeText(this@MainActivity, "圖片刪除成功", Toast.LENGTH_SHORT).show()
@@ -204,11 +204,13 @@ class MainActivity : ComponentActivity(), AppInjectionProvider {
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU -> {
                 listOf(Manifest.permission.READ_MEDIA_IMAGES)
             }
-            // Android 10 (API 29) ~ Android 12 (API 32)：請求讀取與全部檔案存取權限
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> {
+            /** Android 11 (API 30) ~ Android 12 (API 32)：請求讀取與全部檔案存取權限
+            Android 11 以上 使用MediaStore請求刪除不須使用 MANAGE_EXTERNAL_STORAGE
+            若使用ContentResolver.delete() 會因Scoped Storage需要獲取MANAGE_EXTERNAL_STORAGE
+             **/
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> {
                 listOf(
-                    Manifest.permission.READ_EXTERNAL_STORAGE,
-                    Manifest.permission.MANAGE_EXTERNAL_STORAGE
+                    Manifest.permission.READ_EXTERNAL_STORAGE
                 )
             }
             // Android 9 (API 28) 及以下：請求傳統的讀取與寫入權限
