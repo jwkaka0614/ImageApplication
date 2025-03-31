@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.runner.AndroidJUnitRunner
+import com.example.imageapplication.component.DaggerTestAppComponent
 import com.example.imageapplication.manager.IImageManager
 import com.example.imageapplication.manager.TestImageManager
 
@@ -33,14 +34,21 @@ class MainActivityTest {
 
     @Before
     fun setup() {
-        application = ApplicationProvider.getApplicationContext() as TestApplication
-        application.onCreate() // 初始化 TestApplication 及其元件
 
-        // 手動創建 MainActivity (用於單元測試，並非完整的 Activity 啟動)
-        mainActivity = MainActivity()
-        application.inject(mainActivity) // 將依賴注入到 MainActivity 中
     }
-
-
+    @Test
+    fun launchAppManually() {
+        // 啟動你的主畫面
+        val scenario = ActivityScenario.launch(MainActivity::class.java)
+        scenario.onActivity { activity ->
+            // 此時 imageViewModel 等依賴是由 TestAppComponent 注入 (如 TestImageManager)
+            // 你可以檢查依賴是否為預期的測試版本或進行手動操作驗證
+        }
+        Thread.sleep(Long.MAX_VALUE)
+    }
+    @Test
+    fun testGetImageFlow() {
+        // 測試 TestImageManager 的 getImageFlow，進行對應驗證
+    }
     // 您可以針對生產環境 MainActivity 的其他功能編寫更多測試
 }
