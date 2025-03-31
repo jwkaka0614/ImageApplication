@@ -132,7 +132,10 @@ class MainActivity : ComponentActivity(), AppInjectionProvider {
                 // 使用 LaunchedEffect，只在 selectedTabIndex 改變時調用對應的 fetch 方法
                 LaunchedEffect(key1 = selectedTabIndex) {
                     when (selectedTabIndex) {
-                        0 -> imageViewModel.fetchImages()      // 切換到 All Image 時 fetch 一次圖片
+                        0 -> {
+                            imageViewModel.fetchImages()
+                            imageViewModel.clearStack()
+                        }     // 切換到 All Image 時 fetch 一次圖片
                         1 -> imageViewModel.fetchFolderPath()    // 切換到 Folder Image 時更新資料夾
                     }
                 }

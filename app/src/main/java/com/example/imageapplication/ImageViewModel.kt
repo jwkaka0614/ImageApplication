@@ -200,4 +200,8 @@ class ImageViewModel @Inject constructor(
 
         }
     }
+
+    fun clearStack(){
+        pathStack.clear()
+    }
 }
