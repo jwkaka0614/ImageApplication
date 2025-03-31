@@ -1,6 +1,7 @@
 package com.example.imageapplication
 
 import android.content.IntentSender
+import android.nfc.Tag
 import android.os.Build
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -62,6 +63,7 @@ class ImageViewModel @Inject constructor(
         // 監聽 currentPath 的變化，調用 fetchImages 新操作
         viewModelScope.launch {
             currentPath.drop(1).collect { newPath ->
+                Log.d(TAG, "currentPath changed to: $newPath")
                 // 根據新的路徑讀取圖片
                 fetchImages(newPath)
             }
@@ -78,6 +80,7 @@ class ImageViewModel @Inject constructor(
 
         // 啟動新的job
         fetchImagesJob = viewModelScope.launch {
+//            Log.d(TAG,"fetchImages start")
             _imageList.value = emptyList()
             imageManager.getImageFlow(path)
                 .catch { e ->
@@ -89,6 +92,7 @@ class ImageViewModel @Inject constructor(
                         currentList + image
                     }
                 }
+//            Log.d(TAG,"fetchImages finish")
         }
     }
 
@@ -130,16 +134,16 @@ class ImageViewModel @Inject constructor(
     suspend fun fetchFolderPath() {
         //必須等待抓完當前資料夾含子資料夾圖片後
         fetchImagesJob?.join()
-
         _folderList.value = emptyList()
         val folderGrouping = folderRepository.getFirstLevel(_imageList.value)
+        fetchCurrentFolderImages(folderGrouping.rootFolder)
         _folderList.value = folderGrouping.subFolders
         _currentPath.value = folderGrouping.rootFolder
 
-        fetchCurrentFolderImages(folderGrouping.rootFolder)
     }
 
-    fun fetchCurrentFolderImages(currentFolder: String) {
+    suspend fun fetchCurrentFolderImages(currentFolder: String) {
+        fetchImagesJob?.join()
         // 使用 trimEnd('/') 處理可能多餘的斜線
         val trimmedFolder = currentFolder.trimEnd('/')
         _folderImageList.value = _imageList.value.filter { image ->
